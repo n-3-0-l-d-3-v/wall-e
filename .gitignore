@@ -1,0 +1,16 @@
+__pycache__/
+*.pyc
+*.egg-info/
+.pytest_cache/
+build/
+dist/
+.venv/
+venv/
+
+# Wall-E's weekly reports are system telemetry (private tier per agent.yaml)
+# generated on this machine, from this machine's disk/health/audit state.
+# Keep them local by default, same spirit as Ultron's vault/Ultron/pending/
+# rule (a private/unreviewed folder stays untracked until a human decides
+# otherwise) -- see README.md "vault/ and git" for the reasoning.
+vault/Wall-E/*
+!vault/Wall-E/.gitkeep

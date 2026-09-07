@@ -1,0 +1,40 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "wall-e-agent"
+version = "0.1.0"
+description = "System-health and maintenance agent: agent-health aggregation, privacy-audit review, agent.yaml contract compliance, disk/git-status checks, and weekly Markdown report generation."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "Apache-2.0" }
+
+# Deliberately tiny dependency surface: PyYAML for agent.yaml parsing, and
+# nothing else. Health aggregation shells out to `jarvis health` rather
+# than importing the jarvis package, so jarvis is not a runtime dependency
+# (see walle/health_aggregation.py for why).
+dependencies = [
+    "click>=8.1.0",
+    "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=7"]
+
+# The importable package is `walle` (Python identifiers can't contain a
+# hyphen); the installed console script is still `wall-e` to match the
+# ecosystem's agent.yaml `entrypoint: wall-e` / `health_check_command:
+# wall-e --health` contract. See README.md "Package vs command name".
+[project.scripts]
+wall-e = "walle.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["walle*"]
+
+[tool.setuptools.package-data]
+walle = []
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

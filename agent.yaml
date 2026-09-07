@@ -1,0 +1,29 @@
+name: Wall-E
+role: system-health-and-maintenance
+default_sensitivity_tier: private
+entrypoint: wall-e
+health_check_command: wall-e --health
+vault_write_path: vault/Wall-E/
+sandboxed: false
+
+# --- notes for the ecosystem -------------------------------------------
+#
+# `default_sensitivity_tier: private` is a fail-closed default per
+# 10x/docs/omniroute-privacy-spec.md, matching Jarvis's and Ultron's own
+# choice — not a claim that every Wall-E report contains sensitive data.
+# In practice v1 makes almost no network calls at all (see below), so the
+# tier mostly documents intent rather than gating an active routing
+# decision the way it does for Friday/Ultron/Alfred, whose requests really
+# do flow through Jarvis's OmniRoute tier engine.
+#
+# Wall-E v1 makes NO network calls: it only reads local files (agent.yaml
+# files, Jarvis's local sqlite audit log), runs local subprocesses (`jarvis
+# health`, `git status --porcelain` against sibling repo paths), and calls
+# stdlib `shutil.disk_usage`. It does not need Ultron's network-lockdown
+# machinery (no sockets are ever opened), but see walle/guard.py for a
+# cheap, purely-defensive assertion that stays in place anyway in case a
+# future contributor adds a network call without updating this note.
+#
+# health_check_command: `wall-e --health` is a top-level eager flag, not a
+# subcommand, matching Friday's `friday --health`, Ultron's
+# `ultron --health`, and Jarvis's `jarvis --health` — see README.md.
