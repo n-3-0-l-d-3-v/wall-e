@@ -24,6 +24,14 @@ from walle.guard import network_guard
 from walle.report import build_report, render_markdown, write_report
 
 
+def _default_vault_dir() -> Path:
+    import os
+    shared = os.environ.get("VAULT_PATH")
+    if shared:
+        return Path(shared) / "agents" / "Wall-E"
+    return Path(__file__).resolve().parents[1] / "vault" / "Wall-E"
+
+
 def _print_json(data: dict) -> None:
     click.echo(json.dumps(data, indent=2, default=str))
 
@@ -41,7 +49,7 @@ def _self_health() -> dict:
     found = {key: p.exists() for key, p in paths.items()}
     siblings_found = sum(found.values())
 
-    vault_dir = Path(__file__).resolve().parents[1] / "vault" / "Wall-E"
+    vault_dir = _default_vault_dir()
     vault_writable = True
     vault_error = None
     try:
@@ -97,7 +105,7 @@ def report_cmd(as_json: bool, no_write: bool, vault_dir_raw: Optional[str]) -> N
     with network_guard():
         report = build_report()
 
-    vault_dir = Path(vault_dir_raw) if vault_dir_raw else Path(__file__).resolve().parents[1] / "vault" / "Wall-E"
+    vault_dir = Path(vault_dir_raw) if vault_dir_raw else _default_vault_dir()
 
     written_path: Optional[Path] = None
     if not no_write:
