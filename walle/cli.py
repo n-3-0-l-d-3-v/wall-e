@@ -94,6 +94,19 @@ def cli(ctx: click.Context, show_health: bool) -> None:
         click.echo(ctx.get_help())
 
 
+@cli.command(name="schedule")
+@click.argument("action", type=click.Choice(["install", "remove", "status"]))
+def schedule_cmd(action: str) -> None:
+    """Manage the weekly report schedule (Windows Task Scheduler / cron line)."""
+    from walle import schedule as sched
+
+    try:
+        click.echo({"install": sched.install, "remove": sched.remove, "status": sched.status}[action]())
+    except RuntimeError as exc:
+        click.echo(f"Error: {exc}", err=True)
+        sys.exit(1)
+
+
 @cli.command(name="report")
 @click.option("--json", "as_json", is_flag=True, default=False, help="Print machine-readable JSON instead of the Markdown summary.")
 @click.option("--no-write", "no_write", is_flag=True, default=False, help="Don't write the report file to vault/Wall-E/ (still prints the summary).")
