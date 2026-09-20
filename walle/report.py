@@ -46,6 +46,7 @@ def build_report(
         "wall_e_version": __version__,
         "generated_at": now.isoformat(),
         "overall_status": overall_status,
+        "status_reasons": status_reasons(health_summary, audit_summary, contract_summary, resource_summary),
         "agent_health": health_summary,
         "agent_health_raw": health_raw,
         "privacy_audit": audit_summary,
@@ -54,30 +55,44 @@ def build_report(
     }
 
 
-def _overall_status(health: dict, audit: dict, contract: dict, resources: dict) -> str:
-    """`critical` if a real privacy violation was found (per the spec, that
-    deserves loud surfacing above anything else); `degraded` if any agent
-    is unhealthy, any agent.yaml is non-compliant, or a sibling repo has
-    uncommitted changes / a disk-space warning; `ok` otherwise."""
+LOW_DISK_PERCENT = 10.0
+LOW_DISK_GB = 20.0
+
+
+def status_reasons(health: dict, audit: dict, contract: dict, resources: dict) -> list[str]:
+    """Human-readable reasons the report is not `ok` (empty list = ok)."""
+    reasons: list[str] = []
     if audit.get("private_tier_violations"):
-        return "critical"
-
+        reasons.append("PRIVACY: private-tier request routed to a non-local agent")
     if not health.get("reachable"):
-        return "degraded"
-    if health.get("unhealthy_count", 0) > 0:
-        return "degraded"
+        reasons.append("agent health could not be collected")
+    elif health.get("unhealthy_count", 0) > 0:
+        reasons.append(f"{health['unhealthy_count']} unhealthy agent(s)")
     if contract.get("non_compliant"):
-        return "degraded"
-
+        reasons.append("agent.yaml contract violations: " + ", ".join(map(str, contract["non_compliant"])))
     for repo, status in resources.get("git_status", {}).items():
         if status.get("error") or status.get("clean") is False:
-            return "degraded"
+            reasons.append(f"{repo}: uncommitted changes or git error")
+    seen = set()
     for repo, status in resources.get("disk_usage", {}).items():
-        free_pct = status.get("free_percent")
-        if free_pct is not None and free_pct < 10:
-            return "degraded"
+        pct, free = status.get("free_percent"), status.get("free_bytes")
+        key = (pct, free)
+        if key in seen:
+            continue
+        seen.add(key)
+        low_pct = pct is not None and pct < LOW_DISK_PERCENT
+        low_abs = free is not None and free / 1024**3 < LOW_DISK_GB
+        if low_pct or low_abs:
+            reasons.append(f"low disk space: {pct}% free ({(free or 0) / 1024**3:.0f} GB)")
+    return reasons
 
-    return "ok"
+
+def _overall_status(health: dict, audit: dict, contract: dict, resources: dict) -> str:
+    """`critical` for a real privacy violation, `degraded` if anything in
+    status_reasons() applies, else `ok`."""
+    if audit.get("private_tier_violations"):
+        return "critical"
+    return "degraded" if status_reasons(health, audit, contract, resources) else "ok"
 
 
 def render_markdown(report: dict) -> str:
@@ -98,6 +113,8 @@ def render_markdown(report: dict) -> str:
     lines.append(f"# Wall-E Weekly Report — {generated_at}")
     lines.append("")
     lines.append(f"**Overall status: {status.upper()}**")
+    for reason in report.get("status_reasons", []):
+        lines.append(f"- Reason: {reason}")
     lines.append("")
 
     lines.extend(_render_health_section(report["agent_health"]))
