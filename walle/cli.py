@@ -107,6 +107,19 @@ def schedule_cmd(action: str) -> None:
         sys.exit(1)
 
 
+
+@cli.command(name="focus")
+@click.argument("mode", type=click.Choice(["on", "off"]))
+def focus_cmd(mode: str) -> None:
+    """Focus/battery mode: power saver + unload local models (on), restore (off)."""
+    from walle import focus
+
+    try:
+        click.echo(focus.focus_on() if mode == "on" else focus.focus_off())
+    except RuntimeError as exc:
+        click.echo(f"Error: {exc}", err=True)
+        sys.exit(1)
+
 @cli.command(name="report")
 @click.option("--json", "as_json", is_flag=True, default=False, help="Print machine-readable JSON instead of the Markdown summary.")
 @click.option("--no-write", "no_write", is_flag=True, default=False, help="Don't write the report file to vault/Wall-E/ (still prints the summary).")
