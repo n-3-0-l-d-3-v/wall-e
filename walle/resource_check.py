@@ -129,4 +129,6 @@ def default_sibling_repo_paths(ecosystem_root: Optional[Path] = None) -> dict[st
         "ultron": root / "ultron",
         "alfred": root / "alfred",
         "jarvis": root / "jarvis",
+        "tars": root / "tars",
+        "vision": root / "vision",
     }

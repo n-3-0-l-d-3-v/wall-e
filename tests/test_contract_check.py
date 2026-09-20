@@ -98,5 +98,5 @@ def test_real_ecosystem_agent_yamls_are_compliant():
         pytest.skip("sibling agent repos not found next to wall-e/ on this machine")
 
     summary = check_agent_yamls(paths)
-    assert summary["checked_count"] == 4
+    assert summary["checked_count"] == 6
     assert summary["non_compliant"] == {}, summary["non_compliant"]

@@ -96,7 +96,7 @@ def test_real_sibling_repos_check():
         pytest.skip("sibling agent repos not found next to wall-e/ on this machine")
 
     result = check_sibling_repos(paths)
-    assert set(result["git_status"]) == {"friday", "ultron", "alfred", "jarvis"}
+    assert set(result["git_status"]) == {"friday", "ultron", "alfred", "jarvis", "tars", "vision"}
     for repo, status in result["git_status"].items():
         assert status["is_git_repo"] is True, f"{repo}: {status}"
     for repo, status in result["disk_usage"].items():

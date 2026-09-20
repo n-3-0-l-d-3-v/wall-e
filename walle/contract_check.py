@@ -101,4 +101,6 @@ def default_agent_yaml_paths(ecosystem_root: Optional[Path] = None) -> dict[str,
         "ultron": root / "ultron" / "agent.yaml",
         "alfred": root / "alfred" / "agent.yaml",
         "jarvis": root / "jarvis" / "agent.yaml",
+        "tars": root / "tars" / "agent.yaml",
+        "vision": root / "vision" / "agent.yaml",
     }
