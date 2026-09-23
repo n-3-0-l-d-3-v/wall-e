@@ -59,6 +59,15 @@ LOW_DISK_PERCENT = 10.0
 LOW_DISK_GB = 20.0
 
 
+def attach_cleanup_if_low_disk(report: dict, repos: Optional[list[Path]] = None) -> dict:
+    """Add ranked cleanup suggestions to the report when disk space is a reason."""
+    if any("low disk" in r for r in report.get("status_reasons", [])):
+        from walle import cleanup
+
+        report["cleanup"] = cleanup.render(cleanup.suggestions(repos))
+    return report
+
+
 def status_reasons(health: dict, audit: dict, contract: dict, resources: dict) -> list[str]:
     """Human-readable reasons the report is not `ok` (empty list = ok)."""
     reasons: list[str] = []
@@ -122,15 +131,13 @@ def render_markdown(report: dict) -> str:
     lines.extend(_render_contract_section(report["contract_compliance"]))
     lines.extend(_render_resource_section(report["resources"]))
 
-    lines.append("## 5. Deferred for v1")
-    lines.append("")
-    lines.append(
-        "Power/thermal management, systemd/cron scheduling, and any GUI "
-        "health display are explicitly out of scope for Wall-E v1 -- see "
-        "README.md. `wall-e report` is a manually-invoked one-shot command, "
-        "not a background daemon."
-    )
-    lines.append("")
+    if report.get("cleanup"):
+        lines.append("## 5. Cleanup suggestions (nothing was deleted)")
+        lines.append("")
+        lines.append("```")
+        lines.append(report["cleanup"])
+        lines.append("```")
+        lines.append("")
 
     return "\n".join(lines)
 

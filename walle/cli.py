@@ -143,6 +143,10 @@ def report_cmd(as_json: bool, no_write: bool, vault_dir_raw: Optional[str]) -> N
     vault/Wall-E/ and print a summary."""
     with network_guard():
         report = build_report()
+        from walle.report import attach_cleanup_if_low_disk
+        from walle.resource_check import default_sibling_repo_paths
+
+        attach_cleanup_if_low_disk(report, [p for p in default_sibling_repo_paths().values() if p.is_dir()])
 
     vault_dir = Path(vault_dir_raw) if vault_dir_raw else _default_vault_dir()
 

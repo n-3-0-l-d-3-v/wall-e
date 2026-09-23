@@ -21,3 +21,14 @@ def test_same_drive_reported_once():
 def test_violation_is_critical():
     r = dict(OK, audit={"private_tier_violations": [1]})
     assert _overall_status(**r) == "critical"
+
+
+def test_cleanup_attached_only_when_disk_low(monkeypatch):
+    from walle import cleanup, report as rep
+    from walle.report import attach_cleanup_if_low_disk, render_markdown
+
+    monkeypatch.setattr(cleanup, "suggestions", lambda repos=None: [cleanup.Suggestion("pip cache", 3 * cleanup.GB, "safe", "pip cache purge")])
+    ok = attach_cleanup_if_low_disk({"status_reasons": []})
+    assert "cleanup" not in ok
+    low = attach_cleanup_if_low_disk({"status_reasons": ["low disk space: 5% free (20 GB)"]})
+    assert "pip cache purge" in low["cleanup"]

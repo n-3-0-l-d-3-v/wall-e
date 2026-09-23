@@ -53,13 +53,13 @@ def test_render_markdown_has_frontmatter():
     assert str(fm["date"]) == "2026-01-01 00:00:00+00:00"
 
 
-def test_render_markdown_has_all_five_sections():
+def test_render_markdown_has_all_core_sections():
     md = render_markdown(FAKE_REPORT)
     assert "## 1. Agent Health" in md
     assert "## 2. Privacy Audit Review" in md
     assert "## 3. Agent-Contract Compliance" in md
     assert "## 4. Disk / Resource Check" in md
-    assert "## 5. Deferred for v1" in md
+    assert "## 5. Cleanup" not in md  # only shown when disk is low
 
 
 def test_render_markdown_flags_violation():
