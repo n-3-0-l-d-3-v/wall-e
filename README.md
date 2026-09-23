@@ -126,6 +126,10 @@ wall-e report --json
 # Don't write the report file, just print it
 wall-e report --no-write
 
+# The report also checks setup drift: Ollama models pulled, Ultron's
+# sandbox image built, weekly jobs scheduled, tars-guard hooks installed
+# (unknown when a tool/daemon is down -- never a false pass or fail)
+
 # Weekly jobs (Task Scheduler; cron line elsewhere): `report` = this report
 # Sun 09:00, `github` = `friday github` stats snapshot Sun 09:15
 wall-e schedule install|remove|status [--job all|report|github]

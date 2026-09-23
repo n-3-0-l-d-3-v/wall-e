@@ -16,12 +16,14 @@ from walle.audit_review import read_audit_entries, summarize_audit
 from walle.contract_check import check_agent_yamls, default_agent_yaml_paths
 from walle.health_aggregation import run_jarvis_health, summarize_health
 from walle.resource_check import check_sibling_repos, default_sibling_repo_paths
+from walle import setup_check
 
 
 def build_report(
     ecosystem_root: Optional[Path] = None,
     jarvis_command: Optional[list[str]] = None,
     audit_db_path: Optional[Path] = None,
+    include_setup: bool = True,
 ) -> dict:
     """Run all four checks and assemble the structured report dict. This is
     the single source of truth both `--json` output and the Markdown
@@ -40,18 +42,25 @@ def build_report(
     repo_paths = default_sibling_repo_paths(ecosystem_root)
     resource_summary = check_sibling_repos(repo_paths)
 
-    overall_status = _overall_status(health_summary, audit_summary, contract_summary, resource_summary)
+    setup = None
+    if include_setup:
+        guarded = {**repo_paths, "wall-e": repo_paths["friday"].parent / "wall-e",
+                   "10x": repo_paths["friday"].parent / "10x"}
+        setup = setup_check.check_setup(guarded)
+
+    overall_status = _overall_status(health_summary, audit_summary, contract_summary, resource_summary, setup)
 
     return {
         "wall_e_version": __version__,
         "generated_at": now.isoformat(),
         "overall_status": overall_status,
-        "status_reasons": status_reasons(health_summary, audit_summary, contract_summary, resource_summary),
+        "status_reasons": status_reasons(health_summary, audit_summary, contract_summary, resource_summary, setup),
         "agent_health": health_summary,
         "agent_health_raw": health_raw,
         "privacy_audit": audit_summary,
         "contract_compliance": contract_summary,
         "resources": resource_summary,
+        "setup": setup,
     }
 
 
@@ -68,7 +77,7 @@ def attach_cleanup_if_low_disk(report: dict, repos: Optional[list[Path]] = None)
     return report
 
 
-def status_reasons(health: dict, audit: dict, contract: dict, resources: dict) -> list[str]:
+def status_reasons(health: dict, audit: dict, contract: dict, resources: dict, setup: Optional[dict] = None) -> list[str]:
     """Human-readable reasons the report is not `ok` (empty list = ok)."""
     reasons: list[str] = []
     if audit.get("private_tier_violations"):
@@ -93,15 +102,16 @@ def status_reasons(health: dict, audit: dict, contract: dict, resources: dict) -
         low_abs = free is not None and free / 1024**3 < LOW_DISK_GB
         if low_pct or low_abs:
             reasons.append(f"low disk space: {pct}% free ({(free or 0) / 1024**3:.0f} GB)")
+    reasons.extend(setup_check.reasons(setup))
     return reasons
 
 
-def _overall_status(health: dict, audit: dict, contract: dict, resources: dict) -> str:
+def _overall_status(health: dict, audit: dict, contract: dict, resources: dict, setup: Optional[dict] = None) -> str:
     """`critical` for a real privacy violation, `degraded` if anything in
     status_reasons() applies, else `ok`."""
     if audit.get("private_tier_violations"):
         return "critical"
-    return "degraded" if status_reasons(health, audit, contract, resources) else "ok"
+    return "degraded" if status_reasons(health, audit, contract, resources, setup) else "ok"
 
 
 def render_markdown(report: dict) -> str:
@@ -130,9 +140,11 @@ def render_markdown(report: dict) -> str:
     lines.extend(_render_audit_section(report["privacy_audit"]))
     lines.extend(_render_contract_section(report["contract_compliance"]))
     lines.extend(_render_resource_section(report["resources"]))
+    if report.get("setup"):
+        lines.extend(setup_check.render(report["setup"]))
 
     if report.get("cleanup"):
-        lines.append("## 5. Cleanup suggestions (nothing was deleted)")
+        lines.append("## 6. Cleanup suggestions (nothing was deleted)")
         lines.append("")
         lines.append("```")
         lines.append(report["cleanup"])
