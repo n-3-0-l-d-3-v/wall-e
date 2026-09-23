@@ -96,14 +96,22 @@ def cli(ctx: click.Context, show_health: bool) -> None:
 
 @cli.command(name="schedule")
 @click.argument("action", type=click.Choice(["install", "remove", "status"]))
-def schedule_cmd(action: str) -> None:
-    """Manage the weekly report schedule (Windows Task Scheduler / cron line)."""
+@click.option("--job", default="all", show_default=True,
+              type=click.Choice(["all", "report", "github"]),
+              help="report = weekly wall-e report; github = weekly friday github snapshot.")
+def schedule_cmd(action: str, job: str) -> None:
+    """Manage the weekly jobs (Windows Task Scheduler / cron line)."""
     from walle import schedule as sched
 
-    try:
-        click.echo({"install": sched.install, "remove": sched.remove, "status": sched.status}[action]())
-    except RuntimeError as exc:
-        click.echo(f"Error: {exc}", err=True)
+    fn = {"install": sched.install, "remove": sched.remove, "status": sched.status}[action]
+    failed = False
+    for name in (sorted(sched.JOBS) if job == "all" else [job]):
+        try:
+            click.echo(f"{name}: {fn(job=name)}")
+        except RuntimeError as exc:
+            click.echo(f"{name}: Error: {exc}", err=True)
+            failed = True
+    if failed:
         sys.exit(1)
 
 

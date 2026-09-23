@@ -48,14 +48,12 @@ Five checks, assembled into one weekly report:
   this machine is currently Windows; the wider ecosystem plan's OS-level
   work targets a future Linux desktop that doesn't exist as a target yet.
   Real implementation belongs to that later phase, not stubbed here.
-- **`systemd`/cron scheduling** -- `wall-e report` is a manually-invoked
-  one-shot command, not a background daemon. A real recurring-schedule
-  mechanism (systemd timer, Task Scheduler, cron) is a later-phase concern
-  once there's an actual target OS to wire it into.
+- **`systemd` timers** -- scheduling is done (`wall-e schedule`, below) via
+  Windows Task Scheduler; on Linux it prints the cron line. A systemd timer
+  waits for the Phase 1 Linux target.
 - **GUI/desktop-widget health display** -- not attempted; `wall-e report`
   is a CLI report, matching "it doesn't need a chat interface -- it needs
-  a schedule and a report format" from `10x/docs/agents/wall-e.md`, minus
-  the schedule part (see above).
+  a schedule and a report format" from `10x/docs/agents/wall-e.md`.
 
 None of these are stubbed with fake implementations -- they're simply not
 present.
@@ -127,6 +125,14 @@ wall-e report --json
 
 # Don't write the report file, just print it
 wall-e report --no-write
+
+# Weekly jobs (Task Scheduler; cron line elsewhere): `report` = this report
+# Sun 09:00, `github` = `friday github` stats snapshot Sun 09:15
+wall-e schedule install|remove|status [--job all|report|github]
+
+# Focus/battery mode, and suggest-only disk cleanup
+wall-e focus on|off
+wall-e cleanup
 
 # Wall-E's own status (ecosystem agent.yaml contract's health_check_command)
 wall-e --health
