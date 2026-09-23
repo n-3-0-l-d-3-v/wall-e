@@ -120,6 +120,19 @@ def focus_cmd(mode: str) -> None:
         click.echo(f"Error: {exc}", err=True)
         sys.exit(1)
 
+
+@cli.command(name="cleanup")
+def cleanup_cmd() -> None:
+    """Suggest what disk space can be reclaimed (never deletes anything)."""
+    from walle import cleanup
+    from walle.resource_check import default_sibling_repo_paths
+
+    try:
+        repos = [p for p in default_sibling_repo_paths().values() if p.is_dir()]
+    except Exception:  # noqa: BLE001
+        repos = []
+    click.echo(cleanup.render(cleanup.suggestions(repos)))
+
 @cli.command(name="report")
 @click.option("--json", "as_json", is_flag=True, default=False, help="Print machine-readable JSON instead of the Markdown summary.")
 @click.option("--no-write", "no_write", is_flag=True, default=False, help="Don't write the report file to vault/Wall-E/ (still prints the summary).")
