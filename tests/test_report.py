@@ -79,3 +79,12 @@ def test_write_report_creates_file(tmp_path):
     assert out.name == "wall-e-report-2026-01-01.md"
     content = out.read_text(encoding="utf-8")
     assert "Wall-E Weekly Report" in content
+
+
+def test_write_report_names_file_by_local_date(tmp_path, monkeypatch):
+    import datetime
+    # 19:04 UTC on the 1st is 00:34 on the 2nd in IST (+05:30).
+    utc = datetime.datetime(2026, 10, 1, 19, 4, tzinfo=datetime.timezone.utc)
+    report = {**FAKE_REPORT, "generated_at": utc.isoformat()}
+    out = write_report(report, tmp_path)
+    assert out.name == f"wall-e-report-{utc.astimezone().date().isoformat()}.md"

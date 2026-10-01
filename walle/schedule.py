@@ -13,6 +13,7 @@ import os
 import shutil
 import subprocess
 from dataclasses import dataclass
+from pathlib import Path
 
 
 @dataclass(frozen=True)
@@ -43,10 +44,50 @@ def _command(job: Job) -> str:
     return f'"{exe}" {job.args}'
 
 
-def build_create_args(day: str | None = None, time: str | None = None, job: str = "report") -> list[str]:
+_DAY_NAMES = {"SUN": "Sunday", "MON": "Monday", "TUE": "Tuesday", "WED": "Wednesday",
+              "THU": "Thursday", "FRI": "Friday", "SAT": "Saturday"}
+
+
+def task_xml(day: str | None = None, time: str | None = None, job: str = "report") -> str:
+    """Task Scheduler definition. Unlike plain `schtasks /Create`, this lets a
+    laptop job run on battery and catch up after a missed slot (machine off or
+    asleep at 09:00) -- the defaults made both weekly jobs fail with
+    0x800710E0 on 2026-09-28."""
+    import datetime
+    from xml.sax.saxutils import escape
+
     j = _job(job)
-    return ["schtasks", "/Create", "/F", "/TN", j.task, "/SC", "WEEKLY",
-            "/D", day or j.day, "/ST", time or j.time, "/TR", _command(j)]
+    day, time = (day or j.day).upper(), time or j.time
+    if day not in _DAY_NAMES:
+        raise RuntimeError(f"unknown day {day!r}; use one of {sorted(_DAY_NAMES)}")
+    anchor = datetime.date(2026, 1, 4) + datetime.timedelta(days=_CRON_DAYS[day])  # 2026-01-04 is a Sunday
+    exe = shutil.which(j.exe) or j.exe
+    return f"""<?xml version="1.0" encoding="UTF-16"?>
+<Task version="1.2" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">
+  <RegistrationInfo><Description>10x ecosystem weekly job: {escape(j.exe)} {escape(j.args)}</Description></RegistrationInfo>
+  <Triggers>
+    <CalendarTrigger>
+      <StartBoundary>{anchor.isoformat()}T{time}:00</StartBoundary>
+      <Enabled>true</Enabled>
+      <ScheduleByWeek><DaysOfWeek><{_DAY_NAMES[day]} /></DaysOfWeek><WeeksInterval>1</WeeksInterval></ScheduleByWeek>
+    </CalendarTrigger>
+  </Triggers>
+  <Principals><Principal id="Author"><LogonType>InteractiveToken</LogonType><RunLevel>LeastPrivilege</RunLevel></Principal></Principals>
+  <Settings>
+    <MultipleInstancesPolicy>IgnoreNew</MultipleInstancesPolicy>
+    <DisallowStartIfOnBatteries>false</DisallowStartIfOnBatteries>
+    <StopIfGoingOnBatteries>false</StopIfGoingOnBatteries>
+    <StartWhenAvailable>true</StartWhenAvailable>
+    <ExecutionTimeLimit>PT30M</ExecutionTimeLimit>
+    <Enabled>true</Enabled>
+  </Settings>
+  <Actions Context="Author"><Exec><Command>{escape(exe)}</Command><Arguments>{escape(j.args)}</Arguments></Exec></Actions>
+</Task>
+"""
+
+
+def build_create_args(xml_path: str, job: str = "report") -> list[str]:
+    return ["schtasks", "/Create", "/F", "/TN", _job(job).task, "/XML", xml_path]
 
 
 def cron_line(job: str = "report") -> str:
@@ -59,7 +100,16 @@ def install(day: str | None = None, time: str | None = None, job: str = "report"
     j = _job(job)
     if os.name != "nt":
         return f"Add to crontab: {cron_line(job)}"
-    r = subprocess.run(build_create_args(day, time, job), capture_output=True, text=True)
+    import tempfile
+
+    xml = task_xml(day, time, job)
+    fd, path = tempfile.mkstemp(suffix=".xml")
+    os.close(fd)
+    try:
+        Path(path).write_text(xml, encoding="utf-16")
+        r = subprocess.run(build_create_args(path, job), capture_output=True, text=True)
+    finally:
+        Path(path).unlink(missing_ok=True)
     if r.returncode != 0:
         raise RuntimeError((r.stderr or r.stdout).strip())
     return f"Scheduled '{j.task}' weekly {day or j.day} {time or j.time}"

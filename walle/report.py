@@ -271,7 +271,9 @@ def write_report(
     runs don't clobber each other."""
     vault_dir.mkdir(parents=True, exist_ok=True)
     if filename is None:
-        date_str = report["generated_at"][:10]
+        # Local date: generated_at is UTC, which named a report run just after
+        # local midnight (IST) after the previous day.
+        date_str = datetime.datetime.fromisoformat(report["generated_at"]).astimezone().date().isoformat()
         filename = f"wall-e-report-{date_str}.md"
     out_path = vault_dir / filename
     out_path.write_text(render_markdown(report), encoding="utf-8")
