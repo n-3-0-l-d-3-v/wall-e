@@ -163,7 +163,7 @@ def _render_health_section(health: dict) -> list[str]:
 
     lines.append(
         f"- {health['healthy_count']}/{health['total_count']} healthy "
-        f"(Jarvis + Friday + Ultron + Alfred)"
+        + (f"({', '.join(health['agents'])})" if health.get("agents") else "")
     )
     if health["unhealthy"]:
         lines.append("- Unhealthy:")

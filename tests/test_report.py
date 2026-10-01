@@ -88,3 +88,11 @@ def test_write_report_names_file_by_local_date(tmp_path, monkeypatch):
     report = {**FAKE_REPORT, "generated_at": utc.isoformat()}
     out = write_report(report, tmp_path)
     assert out.name == f"wall-e-report-{utc.astimezone().date().isoformat()}.md"
+
+
+def test_health_line_lists_the_real_agents():
+    from walle.health_aggregation import summarize_health
+    from walle.report import _render_health_section
+    h = summarize_health({"reachable": True, "agents": {"tars": {"healthy": True}, "vision": {"healthy": True}}, "jarvis": {"healthy": True},
+                          "wall_e_meta": {}})
+    assert "3/3 healthy (jarvis, tars, vision)" in "\n".join(_render_health_section(h))

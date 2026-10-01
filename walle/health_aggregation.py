@@ -142,5 +142,6 @@ def summarize_health(health_payload: dict) -> dict:
         "healthy_count": healthy_count,
         "unhealthy_count": len(unhealthy),
         "total_count": len(entries),
+        "agents": sorted(entries),
         "unhealthy": unhealthy,
     }
