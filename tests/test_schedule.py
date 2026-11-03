@@ -13,7 +13,9 @@ def test_task_xml_is_weekly_runs_report_and_survives_laptop_life():
     assert st.find("t:DisallowStartIfOnBatteries", ns).text == "false"
     assert st.find("t:StopIfGoingOnBatteries", ns).text == "false"
     assert st.find("t:StartWhenAvailable", ns).text == "true"
-    assert root.find("t:Actions/t:Exec/t:Arguments", ns).text == "report"
+    args = root.find("t:Actions/t:Exec/t:Arguments", ns).text
+    assert args.startswith("-m walle.runjob report ") and args.endswith(" report")
+    assert root.find("t:Actions/t:Exec/t:Command", ns).text.lower().endswith(("pythonw.exe", "python", "python.exe"))
 
 
 def test_create_args_use_the_xml_definition():
@@ -33,7 +35,7 @@ def test_install_writes_utf16_xml_and_cleans_up(monkeypatch):
         return R()
     monkeypatch.setattr(schedule.subprocess, "run", fake_run)
     assert "Scheduled 'Friday-WeeklyGitHub'" in schedule.install(job="github")
-    assert "<Arguments>github</Arguments>" in seen["text"] and not seen["path"].exists()
+    assert "-m walle.runjob github " in seen["text"] and not seen["path"].exists()
 
 
 def test_cron_line_shape():
@@ -52,7 +54,7 @@ def test_install_raises_on_failure(monkeypatch):
 def test_github_job_runs_friday_github_at_its_own_task_name():
     assert "Friday-WeeklyGitHub" in schedule.build_create_args("x.xml", job="github")
     xml = schedule.task_xml(job="github")
-    assert "<Arguments>github</Arguments>" in xml and "2026-01-04T09:15:00" in xml
+    assert "-m walle.runjob github " in xml and "2026-01-04T09:15:00" in xml
     assert schedule.cron_line("github").startswith("15 9 * * 0 ")
 
 

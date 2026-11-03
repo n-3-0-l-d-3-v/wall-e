@@ -48,6 +48,18 @@ _DAY_NAMES = {"SUN": "Sunday", "MON": "Monday", "TUE": "Tuesday", "WED": "Wednes
               "THU": "Thursday", "FRI": "Friday", "SAT": "Saturday"}
 
 
+def task_action(job: str = "report") -> tuple[str, str]:
+    """(command, arguments): the job via the windowless runner (walle/runjob.py),
+    so no console window appears and output lands in ~/.walle/jobs/<job>.log."""
+    import sys
+
+    j = _job(job)
+    exe = shutil.which(j.exe) or j.exe
+    py = Path(sys.executable)
+    pyw = py.with_name("pythonw.exe")
+    return str(pyw if pyw.exists() else py), f'-m walle.runjob {job} "{exe}" {j.args}'
+
+
 def task_xml(day: str | None = None, time: str | None = None, job: str = "report") -> str:
     """Task Scheduler definition. Unlike plain `schtasks /Create`, this lets a
     laptop job run on battery and catch up after a missed slot (machine off or
@@ -61,7 +73,7 @@ def task_xml(day: str | None = None, time: str | None = None, job: str = "report
     if day not in _DAY_NAMES:
         raise RuntimeError(f"unknown day {day!r}; use one of {sorted(_DAY_NAMES)}")
     anchor = datetime.date(2026, 1, 4) + datetime.timedelta(days=_CRON_DAYS[day])  # 2026-01-04 is a Sunday
-    exe = shutil.which(j.exe) or j.exe
+    command, arguments = task_action(job)
     return f"""<?xml version="1.0" encoding="UTF-16"?>
 <Task version="1.2" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">
   <RegistrationInfo><Description>10x ecosystem weekly job: {escape(j.exe)} {escape(j.args)}</Description></RegistrationInfo>
@@ -81,7 +93,7 @@ def task_xml(day: str | None = None, time: str | None = None, job: str = "report
     <ExecutionTimeLimit>PT30M</ExecutionTimeLimit>
     <Enabled>true</Enabled>
   </Settings>
-  <Actions Context="Author"><Exec><Command>{escape(exe)}</Command><Arguments>{escape(j.args)}</Arguments></Exec></Actions>
+  <Actions Context="Author"><Exec><Command>{escape(command)}</Command><Arguments>{escape(arguments)}</Arguments></Exec></Actions>
 </Task>
 """
 

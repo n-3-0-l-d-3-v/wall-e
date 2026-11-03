@@ -80,6 +80,28 @@ def check_schedules() -> dict:
     return out
 
 
+STALE_DAYS = 8
+
+
+def check_job_runs(log_dir: Optional[Path] = None, now=None) -> dict:
+    """Last finished run per weekly job, from walle.runjob's logs:
+    {"job": {"when": iso, "exit": int, "stale": bool}} or None if never run
+    through the runner (e.g. right after an upgrade) -- unknown, not a failure."""
+    import datetime
+    from walle import runjob, schedule
+
+    now = now or datetime.datetime.now()
+    out = {}
+    for job in sorted(schedule.JOBS):
+        last = runjob.last_run(job, log_dir)
+        out[job] = None if last is None else {
+            "when": last["when"].isoformat(timespec="minutes"),
+            "exit": last["exit"],
+            "stale": (now - last["when"]).days >= STALE_DAYS,
+        }
+    return out
+
+
 def check_guard_hooks(repos: dict[str, Path]) -> dict:
     out = {}
     for name, path in repos.items():
@@ -98,6 +120,7 @@ def check_setup(repos: dict[str, Path]) -> dict:
         "models": check_models(),
         "sandbox_image": check_sandbox_image(),
         "schedules": check_schedules(),
+        "job_runs": check_job_runs(),
         "guard_hooks": check_guard_hooks(repos),
     }
 
@@ -114,6 +137,13 @@ def reasons(setup: Optional[dict]) -> list[str]:
     for job, ok in (setup.get("schedules") or {}).items():
         if ok is False:
             out.append(f"weekly job '{job}' not scheduled (wall-e schedule install --job {job})")
+    for job, run in (setup.get("job_runs") or {}).items():
+        if not run:
+            continue
+        if run["exit"] != 0:
+            out.append(f"weekly job '{job}' last run failed (exit {run['exit']}, {run['when']}); see ~/.walle/jobs/{job}.log")
+        elif run["stale"]:
+            out.append(f"weekly job '{job}' has not run since {run['when']}")
     unguarded = [r for r, ok in (setup.get("guard_hooks") or {}).items() if ok is False]
     if unguarded:
         out.append("no tars-guard pre-commit hook in: " + ", ".join(sorted(unguarded)) + " (tars guard install --path <repo>)")
@@ -133,6 +163,14 @@ def render(setup: dict) -> list[str]:
                      + (f"; missing {', '.join(m['missing'])}" if m["missing"] else ""))
     lines.append(f"- Sandbox image `{img['image']}`: {mark(img['present'])}" + (f" ({img['error']})" if img["error"] else ""))
     lines.append("- Scheduled jobs: " + ", ".join(f"{j} {mark(v)}" for j, v in setup["schedules"].items()))
+    runs = setup.get("job_runs") or {}
+    if runs:
+        def fmt(r):
+            if not r:
+                return "no run logged yet"
+            state = "ok" if r["exit"] == 0 else f"FAILED exit {r['exit']}"
+            return f"{state} {r['when']}" + (" (stale)" if r["stale"] else "")
+        lines.append("- Last job runs: " + ", ".join(f"{j} {fmt(r)}" for j, r in runs.items()))
     hooks = setup["guard_hooks"]
     lines.append(f"- tars-guard hooks: {sum(1 for v in hooks.values() if v)}/{len(hooks)} repos"
                  + (f"; missing in {', '.join(sorted(r for r, v in hooks.items() if not v))}" if not all(hooks.values()) else ""))

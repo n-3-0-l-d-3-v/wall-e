@@ -132,6 +132,8 @@ wall-e report --no-write
 
 # Weekly jobs (Task Scheduler; cron line elsewhere): `report` = this report
 # Sun 09:00, `github` = `friday github` stats snapshot Sun 09:15
+# Jobs run windowless via `pythonw -m walle.runjob`; output and exit codes
+# go to ~/.walle/jobs/<job>.log, and the report flags failed or stale runs.
 wall-e schedule install|remove|status [--job all|report|github]
 
 # Focus/battery mode, and suggest-only disk cleanup
