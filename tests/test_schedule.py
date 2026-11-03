@@ -23,7 +23,7 @@ def test_create_args_use_the_xml_definition():
 
 
 def test_install_writes_utf16_xml_and_cleans_up(monkeypatch):
-    monkeypatch.setattr(schedule.os, "name", "nt")
+    monkeypatch.setattr(schedule, "_windows", lambda: True)
     seen = {}
 
     class R: returncode = 0; stderr = ""; stdout = "ok"
@@ -43,7 +43,7 @@ def test_cron_line_shape():
 
 
 def test_install_raises_on_failure(monkeypatch):
-    monkeypatch.setattr(schedule.os, "name", "nt")
+    monkeypatch.setattr(schedule, "_windows", lambda: True)
     class R: returncode = 1; stderr = "denied"; stdout = ""
     monkeypatch.setattr(schedule.subprocess, "run", lambda *a, **k: R())
     import pytest

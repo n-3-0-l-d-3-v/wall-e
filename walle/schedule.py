@@ -33,6 +33,12 @@ TASK_NAME = JOBS["report"].task  # back-compat
 _CRON_DAYS = {"SUN": 0, "MON": 1, "TUE": 2, "WED": 3, "THU": 4, "FRI": 5, "SAT": 6}
 
 
+def _windows() -> bool:
+    """Seam for tests: faking Windows by setting os.name globally makes
+    pathlib build WindowsPath on Linux CI and crash."""
+    return os.name == "nt"
+
+
 def _job(name: str) -> Job:
     if name not in JOBS:
         raise RuntimeError(f"unknown job {name!r}; choose from {sorted(JOBS)}")
@@ -110,7 +116,7 @@ def cron_line(job: str = "report") -> str:
 
 def install(day: str | None = None, time: str | None = None, job: str = "report") -> str:
     j = _job(job)
-    if os.name != "nt":
+    if not _windows():
         return f"Add to crontab: {cron_line(job)}"
     import tempfile
 
@@ -129,7 +135,7 @@ def install(day: str | None = None, time: str | None = None, job: str = "report"
 
 def remove(job: str = "report") -> str:
     j = _job(job)
-    if os.name != "nt":
+    if not _windows():
         return f"Remove the `{j.exe} {j.args}` line from your crontab."
     r = subprocess.run(["schtasks", "/Delete", "/F", "/TN", j.task], capture_output=True, text=True)
     return f"Removed '{j.task}'." if r.returncode == 0 else f"'{j.task}' not scheduled ({(r.stderr or r.stdout).strip()})"
@@ -137,7 +143,7 @@ def remove(job: str = "report") -> str:
 
 def is_scheduled(job: str = "report") -> bool | None:
     """True/False on Windows; None where scheduling is cron-managed (unknown)."""
-    if os.name != "nt":
+    if not _windows():
         return None
     r = subprocess.run(["schtasks", "/Query", "/TN", _job(job).task], capture_output=True, text=True)
     return r.returncode == 0
