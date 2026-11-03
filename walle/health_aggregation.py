@@ -38,7 +38,10 @@ import subprocess
 from typing import Optional
 
 DEFAULT_COMMAND = ["jarvis", "health"]
-DEFAULT_TIMEOUT = 30.0
+# Generous: the weekly report usually runs as a catch-up at logon, when the
+# machine is busy. 30s timed out there on 2026-11-01 while a normal run
+# takes ~6s; nobody is waiting on an unattended report.
+DEFAULT_TIMEOUT = 120.0
 
 
 def run_jarvis_health(
