@@ -39,3 +39,16 @@ def test_docker_reclaimable_parses_df(monkeypatch):
 
 def test_parse_size_units():
     assert cleanup.parse_size("1KB") == 1024 and cleanup.parse_size("0B") == 0 and cleanup.parse_size("junk") == 0
+
+
+def test_docker_disk_reported_for_review_only_when_large(tmp_path, monkeypatch):
+    from walle import cleanup
+    disk = tmp_path / "AppData" / "Local" / "Docker" / "wsl" / "disk" / "docker_data.vhdx"
+    disk.parent.mkdir(parents=True)
+    with open(disk, "wb") as f:
+        f.truncate(1024)  # sparse; size check only
+    assert cleanup.docker_disk(tmp_path) is None
+    monkeypatch.setattr(cleanup, "DOCKER_DISK_MIN", 512)
+    s = cleanup.docker_disk(tmp_path)
+    assert s.kind == "review" and s.bytes == 1024 and "ultron sandbox build" in s.command
+    assert cleanup.docker_disk(tmp_path / "nothing") is None

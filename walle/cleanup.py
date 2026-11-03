@@ -92,6 +92,25 @@ def docker_reclaimable(run: Callable = subprocess.run) -> Optional[Suggestion]:
     return Suggestion("Docker (unused images/cache)", total, "safe", "docker system prune (add -a to drop unused images)")
 
 
+DOCKER_DISK_MIN = 5 * GB
+
+
+def docker_disk(home: Path) -> Optional[Suggestion]:
+    """Docker Desktop's WSL virtual disk. It only ever grows: pruning frees
+    space inside it but not on C:. It was the largest consumer here (18 GB on
+    2026-11-03) and invisible to every other check. Works with the daemon off."""
+    local = home / "AppData" / "Local" / "Docker" / "wsl"
+    disks = [p for p in (local / "disk" / "docker_data.vhdx", local / "data" / "ext4.vhdx") if p.is_file()]
+    size = sum(p.stat().st_size for p in disks)
+    if size < DOCKER_DISK_MIN:
+        return None
+    return Suggestion(
+        "Docker virtual disk (never shrinks by itself)", size, "review",
+        "start Docker, `docker system prune -a` (keeps nothing unused; rebuild Ultron's image with "
+        "`ultron sandbox build`), then compact: Docker Desktop > Troubleshoot > Clean / Purge data",
+        detail=str(disks[0]))
+
+
 def parse_size(s: str) -> int:
     s = s.strip().upper()
     for unit, mult in (("TB", 1024 ** 4), ("GB", GB), ("MB", 1024 ** 2), ("KB", 1024), ("B", 1)):
@@ -122,9 +141,9 @@ def suggestions(repos: Optional[list[Path]] = None, run: Callable = subprocess.r
                 if kind == "review":
                     s.top_files = largest_files(path)
                 out.append(s)
-    d = docker_reclaimable(run)
-    if d:
-        out.append(d)
+    for d in (docker_reclaimable(run), docker_disk(home)):
+        if d:
+            out.append(d)
     if repos:
         p = pycache_in(repos)
         if p.bytes:
